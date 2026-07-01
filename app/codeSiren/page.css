@@ -1,0 +1,23 @@
+.fields-configuration {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  column-gap: 3rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.fields-configuration-column {
+  text-align: left;
+}
+
+.radio-button {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+}
+
+.radio-button input {
+  accent-color: var(--green, #009058);
+  margin-right: 0.4rem;
+}
