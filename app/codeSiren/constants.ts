@@ -1,8 +1,7 @@
 import { NoDataMessage } from "../../lib/cleanData/types";
 import { SireneFieldKey, SireneInputKey } from "./types";
 
-export const TITLE =
-  "Ajouter des données SIRENE à partir d'un champ existant";
+export const TITLE = "Ajouter des données SIRENE à partir d'un champ existant";
 
 // Key used to persist the input/output fields chosen by the user as widget options.
 export const WIDGET_OPTIONS_KEY = "sireneFieldsConfig";
@@ -19,30 +18,98 @@ export const INPUT_FIELD_OPTIONS: {
   { key: "nom", label: "Nom (raison sociale)" },
   { key: "siren", label: "SIREN" },
   { key: "siret", label: "SIRET" },
+  { key: "adresse", label: "Adresse" },
+];
+
+// Nom et adresse sont des recherches floues (texte libre), contrairement au SIREN/SIRET
+// qui sont des identifiants recherchés en correspondance exacte par l'api.
+export const FUZZY_SEARCH_INPUT_KEYS: SireneInputKey[] = ["nom", "adresse"];
+
+// Champs regroupés par objet de la réponse de l'api (voir search-api,
+// app/models/unite_legale.py) : unité légale (toujours renvoyée), établissement siège
+// (nécessite include=siege) et compléments (nécessite include=complements).
+export const OUTPUT_FIELD_GROUPS: {
+  label: string;
+  keys: SireneFieldKey[];
+}[] = [
+  {
+    label: "Unité légale",
+    keys: [
+      "nom",
+      "nom_raison_sociale",
+      "sigle",
+      "siren",
+      "categorie_entreprise",
+      "tranche_effectif_salarie",
+      "nature_juridique",
+      "etat_administratif",
+      "activite_principale",
+      "section_activite_principale",
+      "date_creation",
+      "date_fermeture",
+      "nombre_etablissements",
+      "nombre_etablissements_ouverts",
+    ],
+  },
+  {
+    label: "Établissement siège",
+    keys: [
+      "siret",
+      "adresse",
+      "code_postal",
+      "code_commune",
+      "libelle_commune",
+      "departement",
+      "region",
+      "epci",
+    ],
+  },
+  {
+    label: "Compléments",
+    keys: ["est_association", "est_ess"],
+  },
 ];
 
 export const OUTPUT_FIELD_LABELS: Record<SireneFieldKey, string> = {
   nom: "Nom complet",
+  nom_raison_sociale: "Nom / raison sociale",
+  sigle: "Sigle",
   siren: "SIREN",
+  categorie_entreprise: "Catégorie d'entreprise (PME, ETI, GE...)",
+  tranche_effectif_salarie: "Tranche d'effectif salarié",
+  nature_juridique: "Nature juridique",
+  etat_administratif: "État administratif (actif/cessé)",
+  activite_principale: "Activité principale (code NAF/APE)",
+  section_activite_principale: "Section d'activité principale (NAF)",
+  date_creation: "Date de création",
+  date_fermeture: "Date de fermeture",
+  nombre_etablissements: "Nombre d'établissements",
+  nombre_etablissements_ouverts: "Nombre d'établissements ouverts",
   siret: "SIRET (établissement siège)",
   adresse: "Adresse (siège)",
   code_postal: "Code postal (siège)",
   code_commune: "Code commune Insee (siège)",
   libelle_commune: "Commune (siège)",
-  activite_principale: "Activité principale (code NAF/APE)",
-  nature_juridique: "Nature juridique",
-  date_creation: "Date de création",
+  departement: "Département (siège)",
+  region: "Région (siège)",
+  epci: "EPCI (siège)",
+  est_association: "Est une association",
+  est_ess: "Fait partie de l'économie sociale et solidaire (ESS)",
 };
 
-export const OUTPUT_FIELD_OPTIONS: { key: SireneFieldKey; label: string }[] = (
-  Object.keys(OUTPUT_FIELD_LABELS) as SireneFieldKey[]
-).map((key) => ({ key, label: OUTPUT_FIELD_LABELS[key] }));
+export const OUTPUT_FIELD_OPTIONS: { key: SireneFieldKey; label: string }[] =
+  OUTPUT_FIELD_GROUPS.flatMap((group) => group.keys).map((key) => ({
+    key,
+    label: OUTPUT_FIELD_LABELS[key],
+  }));
 
-// These fields are not returned by the api when the "minimal" search mode is used.
-export const FIELDS_REQUIRING_FULL_DATA: SireneFieldKey[] = [
-  "activite_principale",
-  "nature_juridique",
-  "date_creation",
+// The api only returns the "complements" object if explicitly requested through the "include"
+// query param (see the recherche-entreprises search-api source code, app/utils/helpers.py). We
+// always request "siege" (needed to identify a result by its SIRET), so it's requested
+// unconditionally in callSireneApi.
+export const FIELDS_REQUIRING_COMPLEMENTS_INCLUDE: SireneFieldKey[] = [
+  "est_association",
+  "est_ess",
 ];
 
 export const buildColumnMappingNames = (
@@ -65,9 +132,9 @@ export const buildColumnMappingNames = (
       optional: false,
     },
   ];
-  // Disambiguation columns only make sense for a fuzzy search by name: SIREN/SIRET
+  // Disambiguation columns only make sense for a fuzzy search (nom/adresse): SIREN/SIRET
   // lookups are exact matches.
-  if (inputKey === "nom") {
+  if (FUZZY_SEARCH_INPUT_KEYS.includes(inputKey)) {
     columns.push(
       {
         name: DEPARTEMENT_COLUMN_NAME,

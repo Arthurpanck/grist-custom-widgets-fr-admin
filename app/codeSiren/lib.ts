@@ -3,7 +3,8 @@ import {
   CODE_COMMUNE_COLUMN_NAME,
   CODE_POSTAL_COLUMN_NAME,
   DEPARTEMENT_COLUMN_NAME,
-  FIELDS_REQUIRING_FULL_DATA,
+  FIELDS_REQUIRING_COMPLEMENTS_INCLUDE,
+  FUZZY_SEARCH_INPUT_KEYS,
   NO_DATA_MESSAGES,
   SOURCE_COLUMN_NAME,
 } from "./constants";
@@ -18,20 +19,38 @@ import {
 import { MappedRecord } from "../../lib/util/types";
 import { UncleanedRecord } from "../../lib/cleanData/types";
 
+const asString = (value: string | number | boolean | undefined) =>
+  value === undefined ? undefined : String(value);
+
 const FIELD_EXTRACTORS: Record<
   SireneFieldKey,
   (result: RawSireneResult) => string | undefined
 > = {
   nom: (result) => result.nom_complet,
+  nom_raison_sociale: (result) => result.nom_raison_sociale,
+  sigle: (result) => result.sigle,
   siren: (result) => result.siren,
+  categorie_entreprise: (result) => result.categorie_entreprise,
+  tranche_effectif_salarie: (result) => result.tranche_effectif_salarie,
+  nature_juridique: (result) => result.nature_juridique,
+  etat_administratif: (result) => result.etat_administratif,
+  activite_principale: (result) => result.activite_principale,
+  section_activite_principale: (result) => result.section_activite_principale,
+  date_creation: (result) => result.date_creation,
+  date_fermeture: (result) => result.date_fermeture,
+  nombre_etablissements: (result) => asString(result.nombre_etablissements),
+  nombre_etablissements_ouverts: (result) =>
+    asString(result.nombre_etablissements_ouverts),
   siret: (result) => result.siege?.siret,
   adresse: (result) => result.siege?.adresse,
   code_postal: (result) => result.siege?.code_postal,
   code_commune: (result) => result.siege?.commune,
   libelle_commune: (result) => result.siege?.libelle_commune,
-  activite_principale: (result) => result.activite_principale,
-  nature_juridique: (result) => result.nature_juridique,
-  date_creation: (result) => result.date_creation,
+  departement: (result) => result.siege?.departement,
+  region: (result) => result.siege?.region,
+  epci: (result) => result.siege?.epci,
+  est_association: (result) => asString(result.complements?.est_association),
+  est_ess: (result) => asString(result.complements?.est_ess),
 };
 
 const buildNormalizedResult = (
@@ -59,11 +78,19 @@ export const callSireneApi = async (
   const url = new URL("https://recherche-entreprises.api.gouv.fr/search");
   url.searchParams.set("q", query);
   // TODO : check constrainte of shape : code commune strings of lenght 5, dept strings of lenght 2 or 3
-  const needsFullData = outputKeys.some((key) =>
-    FIELDS_REQUIRING_FULL_DATA.includes(key),
-  );
-  url.searchParams.set("minimal", (!needsFullData).toString());
-  url.searchParams.set("include", "score,siege");
+  // "unité légale" fields (siren, nom_complet, activite_principale...) are always returned by the
+  // api. "siege" and "complements" are nested objects only returned when explicitly requested
+  // through "include" (with minimal=true) : see the recherche-entreprises search-api source, in
+  // app/utils/helpers.py (create_fields_to_include). We always request "siege" (needed to
+  // identify a result by its SIRET) and add "complements" only when needed.
+  const include = new Set(["score", "siege"]);
+  if (
+    outputKeys.some((key) => FIELDS_REQUIRING_COMPLEMENTS_INCLUDE.includes(key))
+  ) {
+    include.add("complements");
+  }
+  url.searchParams.set("minimal", "true");
+  url.searchParams.set("include", Array.from(include).join(","));
   if (isCollectiviteTerritoriale !== undefined) {
     url.searchParams.set(
       "est_collectivite_territoriale",
@@ -112,22 +139,22 @@ export const getSireneResults = async (
       outputKeys.some((key) => !mappedRecord[key])
     ) {
       query = mappedRecord[SOURCE_COLUMN_NAME];
-      const isNomSearch = inputKey === "nom";
-      const departement = isNomSearch
+      const isFuzzySearch = FUZZY_SEARCH_INPUT_KEYS.includes(inputKey);
+      const departement = isFuzzySearch
         ? mappedRecord[DEPARTEMENT_COLUMN_NAME]
         : undefined;
-      const codeCommune = isNomSearch
+      const codeCommune = isFuzzySearch
         ? mappedRecord[CODE_COMMUNE_COLUMN_NAME]
         : undefined;
-      const codePostal = isNomSearch
+      const codePostal = isFuzzySearch
         ? mappedRecord[CODE_POSTAL_COLUMN_NAME]
         : undefined;
       sireneResults = await callSireneApi(
         query,
         outputKeys,
-        // Filtering by collectivité territoriale only makes sense for a fuzzy search by name,
+        // Filtering by collectivité territoriale only makes sense for a fuzzy search (nom/adresse),
         // an exact SIREN/SIRET match should never be filtered out.
-        isNomSearch ? isCollectiviteTerritoriale : undefined,
+        isFuzzySearch ? isCollectiviteTerritoriale : undefined,
         departement,
         codeCommune,
         codePostal,

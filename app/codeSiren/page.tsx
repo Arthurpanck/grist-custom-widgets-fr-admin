@@ -5,6 +5,7 @@ import { useGristEffect } from "../../lib/grist/hooks";
 import { addObjectInRecord, gristReady } from "../../lib/grist/plugin-api";
 import {
   buildColumnMappingNames,
+  FUZZY_SEARCH_INPUT_KEYS,
   NO_DATA_MESSAGES,
   TITLE,
   WIDGET_OPTIONS_KEY,
@@ -247,17 +248,18 @@ const Sirene = () => {
     </div>
   );
 
-  const collectivitesTerritorialesCheckbox = fieldsConfig?.input === "nom" && (
-    <div className="centered-column">
-      <CheckboxParams
-        label="La recherche concerne des collectivités territoriales"
-        value={areCollectivitesTerritoriales}
-        onChange={() =>
-          setAreCollectivitesTerritoriales(!areCollectivitesTerritoriales)
-        }
-      />
-    </div>
-  );
+  const collectivitesTerritorialesCheckbox = fieldsConfig &&
+    FUZZY_SEARCH_INPUT_KEYS.includes(fieldsConfig.input) && (
+      <div className="centered-column">
+        <CheckboxParams
+          label="La recherche concerne des collectivités territoriales"
+          value={areCollectivitesTerritoriales}
+          onChange={() =>
+            setAreCollectivitesTerritoriales(!areCollectivitesTerritoriales)
+          }
+        />
+      </div>
+    );
 
   return currentStep === "loading" ? (
     <Title title={TITLE} />

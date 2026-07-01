@@ -11,6 +11,11 @@
   text-align: left;
 }
 
+.fields-configuration-column h4 {
+  margin-bottom: 0.2rem;
+  color: var(--text-secondary);
+}
+
 .radio-button {
   display: flex;
   flex-direction: column;

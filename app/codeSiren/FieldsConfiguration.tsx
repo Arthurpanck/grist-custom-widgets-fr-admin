@@ -1,7 +1,11 @@
 "use client";
 
 import { FC, useState } from "react";
-import { INPUT_FIELD_OPTIONS, OUTPUT_FIELD_OPTIONS } from "./constants";
+import {
+  INPUT_FIELD_OPTIONS,
+  OUTPUT_FIELD_GROUPS,
+  OUTPUT_FIELD_LABELS,
+} from "./constants";
 import { SireneFieldKey, SireneFieldsConfig, SireneInputKey } from "./types";
 
 export const FieldsConfiguration: FC<{
@@ -15,9 +19,15 @@ export const FieldsConfiguration: FC<{
     new Set(initialConfig?.outputs ?? []),
   );
 
-  const availableOutputs = OUTPUT_FIELD_OPTIONS.filter(
-    (option) => option.key !== input,
-  );
+  const availableOutputGroups = OUTPUT_FIELD_GROUPS.map((group) => ({
+    ...group,
+    options: group.keys
+      .map((key) => ({
+        key,
+        label: OUTPUT_FIELD_LABELS[key],
+      }))
+      .filter((option) => option.key !== input),
+  })).filter((group) => group.options.length > 0);
 
   const handleInputChange = (key: SireneInputKey) => {
     setInput(key);
@@ -43,8 +53,8 @@ export const FieldsConfiguration: FC<{
   return (
     <div className="centered-column">
       <p>
-        Choisissez le champ que vous possédez déjà (la donnée source) ainsi
-        que les informations que vous souhaitez récupérer depuis l&apos;api
+        Choisissez le champ que vous possédez déjà (la donnée source) ainsi que
+        les informations que vous souhaitez récupérer depuis l&apos;api
         Recherche d&apos;entreprises.
       </p>
       <div className="fields-configuration">
@@ -66,18 +76,23 @@ export const FieldsConfiguration: FC<{
         </div>
         <div className="fields-configuration-column">
           <h3>Champs à récupérer</h3>
-          <div className="radio-button">
-            {availableOutputs.map((option) => (
-              <label key={option.key}>
-                <input
-                  type="checkbox"
-                  checked={outputs.has(option.key)}
-                  onChange={() => toggleOutput(option.key)}
-                />
-                {option.label}
-              </label>
-            ))}
-          </div>
+          {availableOutputGroups.map((group) => (
+            <div key={group.label}>
+              <h4>{group.label}</h4>
+              <div className="radio-button">
+                {group.options.map((option) => (
+                  <label key={option.key}>
+                    <input
+                      type="checkbox"
+                      checked={outputs.has(option.key)}
+                      onChange={() => toggleOutput(option.key)}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       <button

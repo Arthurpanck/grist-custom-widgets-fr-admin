@@ -20,14 +20,23 @@ const mappings = {
   siret: "siret",
   nom: "nom",
   adresse: "adresse",
+  est_association: "est_association",
 };
 
 const apiResult = {
   siren: "123456789",
   nom_complet: "ACME SAS",
-  activite_principale: "62.01Z",
+  nom_raison_sociale: "ACME",
+  sigle: "ACM",
+  categorie_entreprise: "PME",
+  tranche_effectif_salarie: "12",
   nature_juridique: "5710",
+  etat_administratif: "A",
+  activite_principale: "62.01Z",
+  section_activite_principale: "J",
   date_creation: "2010-01-01",
+  nombre_etablissements: 3,
+  nombre_etablissements_ouverts: 2,
   score: 1,
   siege: {
     siret: "12345678900012",
@@ -35,6 +44,13 @@ const apiResult = {
     code_postal: "75002",
     commune: "75102",
     libelle_commune: "PARIS",
+    departement: "75",
+    region: "11",
+    epci: "200054781",
+  },
+  complements: {
+    est_association: false,
+    est_ess: true,
   },
 };
 
@@ -48,22 +64,25 @@ describe("callSireneApi", () => {
     fetchMock.dontMock();
   });
 
-  it("should call the recherche-entreprises api with minimal=true when only basic fields are requested", async () => {
+  it("should always call the api with minimal=true and request score+siege", async () => {
     fetchMock.mockResponse(JSON.stringify({ results: [] }));
     await callSireneApi("acme", ["siren", "siret", "nom"]);
     const calledUrl = new URL(fetchMock.mock.lastCall![0] as string);
     expect(calledUrl.searchParams.get("minimal")).toBe("true");
     expect(calledUrl.searchParams.get("q")).toBe("acme");
+    expect(calledUrl.searchParams.get("include")).toBe("score,siege");
     expect(calledUrl.searchParams.has("est_collectivite_territoriale")).toBe(
       false,
     );
   });
 
-  it("should call the api with minimal=false when a field requiring full data is requested", async () => {
+  it("should add complements to include when a complements field is requested", async () => {
     fetchMock.mockResponse(JSON.stringify({ results: [] }));
-    await callSireneApi("acme", ["activite_principale"]);
+    await callSireneApi("acme", ["est_association"]);
     const calledUrl = new URL(fetchMock.mock.lastCall![0] as string);
-    expect(calledUrl.searchParams.get("minimal")).toBe("false");
+    expect(calledUrl.searchParams.get("include")).toBe(
+      "score,siege,complements",
+    );
   });
 
   it("should forward disambiguation params and collectivite filter when provided", async () => {
@@ -87,14 +106,28 @@ describe("callSireneApi", () => {
         siret: "12345678900012",
         score: 1,
         nom: "ACME SAS",
+        nom_raison_sociale: "ACME",
+        sigle: "ACM",
         siren: "123456789",
+        categorie_entreprise: "PME",
+        tranche_effectif_salarie: "12",
+        nature_juridique: "5710",
+        etat_administratif: "A",
+        activite_principale: "62.01Z",
+        section_activite_principale: "J",
+        date_creation: "2010-01-01",
+        date_fermeture: undefined,
+        nombre_etablissements: "3",
+        nombre_etablissements_ouverts: "2",
         adresse: "1 RUE DE LA PAIX 75002 PARIS",
         code_postal: "75002",
         code_commune: "75102",
         libelle_commune: "PARIS",
-        activite_principale: "62.01Z",
-        nature_juridique: "5710",
-        date_creation: "2010-01-01",
+        departement: "75",
+        region: "11",
+        epci: "200054781",
+        est_association: "false",
+        est_ess: "true",
       },
     ]);
   });
@@ -176,13 +209,27 @@ describe("getSireneResults", () => {
       siren: "",
       departement: "75",
     };
-    await getSireneResults(record, mappings, false, true, "siret", [
-      "siren",
-    ]);
+    await getSireneResults(record, mappings, false, true, "siret", ["siren"]);
     const calledUrl = new URL(fetchMock.mock.lastCall![0] as string);
     expect(calledUrl.searchParams.has("departement")).toBe(false);
     expect(calledUrl.searchParams.has("est_collectivite_territoriale")).toBe(
       false,
+    );
+  });
+
+  it("should send disambiguation params and collectivite filter when the input field is adresse", async () => {
+    fetchMock.mockResponse(JSON.stringify({ results: [apiResult] }));
+    const record = {
+      id: 6,
+      source: "1 rue de la paix",
+      siren: "",
+      departement: "75",
+    };
+    await getSireneResults(record, mappings, false, true, "adresse", ["siren"]);
+    const calledUrl = new URL(fetchMock.mock.lastCall![0] as string);
+    expect(calledUrl.searchParams.get("departement")).toBe("75");
+    expect(calledUrl.searchParams.get("est_collectivite_territoriale")).toBe(
+      "true",
     );
   });
 
@@ -233,10 +280,7 @@ describe("mappingsIsReady", () => {
 
   it("returns false when one of the selected outputs is not mapped", () => {
     expect(
-      mappingsIsReady({ source: "source", siren: "siren" }, [
-        "siren",
-        "siret",
-      ]),
+      mappingsIsReady({ source: "source", siren: "siren" }, ["siren", "siret"]),
     ).toBeFalsy();
   });
 
