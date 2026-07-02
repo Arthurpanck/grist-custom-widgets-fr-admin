@@ -5,19 +5,28 @@ import { Accordion } from "../../components/Accordion";
 export const Instructions = () => {
   const instructions = (
     <>
-      Cette Vue permet d'indiquer le code SIREN correspondant à chaque ligne.
+      Cette Vue permet de compléter des informations SIRENE (SIREN, SIRET, nom,
+      adresse...) à partir d'un champ que vous possédez déjà.
       <br />
       Fonctionnement :
       <ul>
         <li>
-          Indiquer la colonne respondant au nom de la société ainsi que la
-          colonne à remplir pour le code SIREN (colonne de type Texte). Il est
-          possible d'indiquer d'autre colonne pour aider à désambiguer.
+          Choisissez d'abord le champ source que vous possédez (Nom, SIREN ou
+          SIRET) ainsi que les informations que vous souhaitez récupérer. Cette
+          configuration peut être modifiée à tout moment via le bouton "Modifier
+          les champs source/destination".
+        </li>
+        <li>
+          Indiquer ensuite dans les options du widget la colonne source ainsi
+          que les colonnes à remplir pour chaque information choisie (colonne de
+          type Texte). Si le champ source est le nom, il est possible d'indiquer
+          d'autres colonnes pour aider à désambiguer.
         </li>
         <li>
           Vérifiez que vous avez bien créer un lien entre la vue et la table :
           dans Données Source &gt; Sélectionner par : choisir la table qui
-          contient vos entités pour lesquels il faut définir le code SIREN.
+          contient vos entités pour lesquelles il faut définir les informations
+          SIRENE.
         </li>
         <li>
           Faire une recherche globale afin de faire une première passe sur
@@ -25,7 +34,7 @@ export const Instructions = () => {
         </li>
         <li>
           Désambiguer ligne par ligne. La raison de pourquoi la Vue n'a pas
-          réussi à remplir le code SIREN automatiquement vous sera indiqué.
+          réussi à remplir les informations automatiquement vous sera indiquée.
           Attention: si la ligne selectionnée reste bloquée sur la première de
           votre table c'est que le lien entre la Vue et la table est manquant.
           Vous devez indiquer dans les données sources de la Vue le

@@ -3,8 +3,8 @@
 import { FC } from "react";
 import { RowRecord } from "grist/GristData";
 import { WidgetColumnMap } from "grist/CustomSectionAPI";
-import { COLUMN_MAPPING_NAMES } from "./constants";
-import { NormalizedSirenResult } from "./types";
+import { OUTPUT_FIELD_LABELS, SOURCE_COLUMN_NAME } from "./constants";
+import { NormalizedSireneResult, SireneFieldKey } from "./types";
 import GenericChoiceBanner from "../../components/cleanData/GenericChoiceBanner";
 import { DirtyRecord, NoResultRecord } from "../../lib/cleanData/types";
 import RecordName from "../../components/RecordName";
@@ -13,17 +13,19 @@ import GenericSpecificProcessing from "../../components/cleanData/GenericSpecifi
 export const SpecificProcessing: FC<{
   mappings: WidgetColumnMap | null;
   record: RowRecord | null | undefined;
-  dirtyData: DirtyRecord<NormalizedSirenResult> | null | undefined;
-  noResultData: NoResultRecord<NormalizedSirenResult> | null | undefined;
+  outputs: SireneFieldKey[];
+  dirtyData: DirtyRecord<NormalizedSireneResult> | null | undefined;
+  noResultData: NoResultRecord<NormalizedSireneResult> | null | undefined;
   passDataFromDirtyToClean: (
-    sirenCodeSelected: NormalizedSirenResult,
-    initalData: DirtyRecord<NormalizedSirenResult>,
+    sireneResultSelected: NormalizedSireneResult,
+    initalData: DirtyRecord<NormalizedSireneResult>,
   ) => void;
   recordResearch: () => void;
   goBackToMenu: () => void;
 }> = ({
   mappings,
   record,
+  outputs,
   dirtyData,
   noResultData,
   passDataFromDirtyToClean,
@@ -33,13 +35,15 @@ export const SpecificProcessing: FC<{
   const recordNameNode = (
     <RecordName
       record={record}
-      columnName={mappings && mappings[COLUMN_MAPPING_NAMES.NAME.name]}
+      columnName={mappings && mappings[SOURCE_COLUMN_NAME]}
     />
   );
 
+  const primaryOutput = outputs[0];
+
   const isResultFind = () => {
-    if (record && mappings) {
-      const columnName = mappings[COLUMN_MAPPING_NAMES.SIREN.name];
+    if (record && mappings && primaryOutput) {
+      const columnName = mappings[primaryOutput];
       if (typeof columnName === "string" && record[columnName]) {
         return true;
       }
@@ -48,24 +52,32 @@ export const SpecificProcessing: FC<{
   };
 
   const recordFindNode = (
-    <div>Le code SIREN de {recordNameNode} a bien été rempli.</div>
+    <div>Les données de {recordNameNode} ont bien été renseignées.</div>
   );
 
   const choiceBannerNode = record && dirtyData && (
-    <GenericChoiceBanner<NormalizedSirenResult>
+    <GenericChoiceBanner<NormalizedSireneResult>
       dirtyData={dirtyData}
       passDataFromDirtyToClean={passDataFromDirtyToClean}
       option={{
-        choiceValueKey: "siren",
+        choiceValueKey: "siret",
         withChoiceTagLegend: true,
-        choiceTagLegend: "Code SIREN",
-        choiceTagKey: "siren",
+        choiceTagLegend: "SIRET",
+        choiceTagKey: "siret",
       }}
-      itemDisplay={(item: NormalizedSirenResult) => {
+      itemDisplay={(item: NormalizedSireneResult) => {
         return (
           <div>
             <b>{item.label}</b>
-            {item.code_commune && ` - ${item.code_commune}`}
+            {outputs.map(
+              (key) =>
+                item[key] && (
+                  <span key={key}>
+                    {" "}
+                    — {OUTPUT_FIELD_LABELS[key]} : {item[key]}
+                  </span>
+                ),
+            )}
           </div>
         );
       }}
@@ -73,7 +85,7 @@ export const SpecificProcessing: FC<{
   );
 
   return (
-    <GenericSpecificProcessing<NormalizedSirenResult>
+    <GenericSpecificProcessing<NormalizedSireneResult>
       record={record}
       recordNameNode={recordNameNode}
       noResultData={noResultData}
